@@ -55,6 +55,28 @@ dbhost= "your_host"
 dbusername="your_username"
 dbpassword="your_password"
 dbdatabase="your_database"  
+The DataAdminSoftware.py can automatically generate input boxes based on the database table structure. However, you will need to manually specify the table and column names in these functions:
+#-----------Import Dialog Class--------------#
+def determine_table(self, column_names):
+def import_to_database(self):
+
+#-----------Main Window Class--------------#
+#------------ init Section------------------#
+class MainWindow(QMainWindow, Ui_MainWindow):
+    def initUI(self):
+        self.Table1 = self.menubar.addAction('Table1')
+        self.Table1.triggered.connect(self.Table1_table)
+
+#---------------------Table Menu-------------------------------#
+    def Table1_table(self):
+        self.selected_table = "Table1"
+        self.open_table_window()
+
+Other Table specific function also exist in:
+    def enabled_function(self):
+    def open_table_from_database(self, selected_table):
+    def cancel_edit(self):
+
 1. Launch the Application: run the Python script to launch the program.
 2. Login: Enter your credentials (username and password) to access the system. If you're a new user, click on the "Create New User" button to register.
 3. Main Interface: Once logged in, you'll be presented with the main interface wiht menu(s) such as import, export, print, and table display.
