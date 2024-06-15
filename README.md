@@ -50,46 +50,30 @@ Activate the virtual environment (On Linux):
 
 ## Usage
 The program simplifies data management tasks for administrators by providing intuitive interfaces for editing, deleting, importing, exporting, and printing data without requiring prior SQL database knowledge. Follow the steps below to use the application:
-0. Set up MySQL Details: edit the detail inside the Python script.
+1. Set up MySQL Details: edit the detail inside the Python script.
 dbhost= "your_host" 
 dbusername="your_username"
 dbpassword="your_password"
 dbdatabase="your_database"  
 The DataAdminSoftware.py can automatically generate input boxes based on the database table structure. However, you will need to manually specify the table and column names in these functions:
-#-----------Import Dialog Class--------------#
-def determine_table(self, column_names):
-def import_to_database(self):
+- On Import Dialog Class: def determine_table, import_to_database.
+- On Main Window Class (init Section)
+- On Table Menu: Table1_table, etc.
+- Other Table specific function also exist in: enabled_function, open_table_from_database, cancel_edit.
 
-#-----------Main Window Class--------------#
-#------------ init Section------------------#
-class MainWindow(QMainWindow, Ui_MainWindow):
-    def initUI(self):
-        self.Table1 = self.menubar.addAction('Table1')
-        self.Table1.triggered.connect(self.Table1_table)
-
-#---------------------Table Menu-------------------------------#
-    def Table1_table(self):
-        self.selected_table = "Table1"
-        self.open_table_window()
-
-Other Table specific function also exist in:
-    def enabled_function(self):
-    def open_table_from_database(self, selected_table):
-    def cancel_edit(self):
-
-1. Launch the Application: run the Python script to launch the program.
-2. Login: Enter your credentials (username and password) to access the system. If you're a new user, click on the "Create New User" button to register.
-3. Main Interface: Once logged in, you'll be presented with the main interface wiht menu(s) such as import, export, print, and table display.
-4. Data Management:
+2. Launch the Application: run the Python script to launch the program.
+3. Login: Enter your credentials (username and password) to access the system. If you're a new user, click on the "Create New User" button to register.
+4. Main Interface: Once logged in, you'll be presented with the main interface wiht menu(s) such as import, export, print, and table display.
+5. Data Management:
    - Edit Data: Click on the "Edit" button to modify existing data. You can edit individual rows, clear all fields, reset changes, and save modifications.
    - Delete Data: Select the row(s) you want to delete and click on the "Delete" button to remove them from the database.
    - Import Data: Use the "Import" feature to add data from external sources into the database.
    - Export Data: Export database data to external files or formats using the "Export" option.
    - Print Data: Preview and print database contents using the "Print" feature.
-5. Additional Functions:
+6. Additional Functions:
    - Display Table: View database tables with ease by selecting the desired table from the dropdown menu.
    - Refresh Page: Refresh the page to reflect the latest data changes.
-6. Logout: Click on the "Logout" button to exit the application and log out of the system.
+7. Logout: Click on the "Logout" button to exit the application and log out of the system.
 
 ### Example:
 Suppose you want to edit a customer's information:
