@@ -65,28 +65,26 @@ class DatabaseManager:
 
 #-------------Check User Credential from Database (User Authentication Dialog)--------------------#
 def check_credentials(entered_username, entered_password):
-    Type = None
     try:
         db_manager = DatabaseManager()  
         db_manager.connect_to_database()         
         cursor = db_manager.db_connection.cursor()
 
-        query = f"SELECT Username, Password, Type FROM User WHERE Username = '{entered_username}'"
+        query = f"SELECT Username, Password FROM User WHERE Username = '{entered_username}'"
         cursor.execute(query)
 
         result = cursor.fetchone()
 
         if result and result[1] == entered_password:
-            Type = result[2]
-            return True, Type  # Return authentication result
+            return True  # Return authentication result
         else:
-            return False, Type  # Return authentication result (False)
+            return False  # Return authentication result (False)
     finally:
         if db_manager:
             db_manager.close_connection()
 
 #---------- Check User in Database (User Creation Dialog) Function-----------------#
-def check_existed_user(new_username, new_email):
+def check_existed_user(new_username):
     db_manager = DatabaseManager()
     db_manager.connect_to_database()
     cursor = db_manager.db_connection.cursor()
@@ -95,19 +93,12 @@ def check_existed_user(new_username, new_email):
     cursor.execute(query_username, (new_username,))
     result_username = cursor.fetchone()
 
-    query_email = "SELECT Email FROM User WHERE Email = %s"
-    cursor.execute(query_email, (new_email,))
-    result_email = cursor.fetchone()
-
     if result_username:
         cursor.close()
         return 1
-    elif result_email:
-        cursor.close()
-        return 2
     else:
         cursor.close()
-        return 0  # Both username and email are available
+        return 0  # username are available
 
 #-----------Change Database Dialog Class--------------#
 #------------ init Section------------------#
@@ -163,7 +154,6 @@ class ChangeDatabase(QDialog):
         if not dbhost or not dbusername or not dbdatabase:
             QMessageBox.warning(self, "Error", "Please fill out all fields.")
             return
-
         try:
             db_manager = DatabaseManager()
             db_manager.connect_to_database()
@@ -181,32 +171,26 @@ class CreateUserDialog(QDialog):
         self.setWindowTitle("Create New User")
         layout = QVBoxLayout()
         self.setLayout(layout)
-        self.setGeometry(100, 100, 300, 150)
+        self.setGeometry(100, 100, 300, 120)
 
         self.create_username_label = QLabel("Username:", self)
         self.create_username_label.setGeometry(10, 10, 280, 20)
 
         self.create_password_label = QLabel("Password:", self)
-        self.create_password_label.setGeometry(10, 70, 280, 20)
-
-        self.create_email_label = QLabel("Email:", self)
-        self.create_email_label.setGeometry(10, 40, 280, 20)
+        self.create_password_label.setGeometry(10, 40, 280, 20)
 
         self.create_username_edit = QLineEdit(self)
         self.create_username_edit.setGeometry(100, 10, 190, 20)
 
         self.create_password_edit = QLineEdit(self)
-        self.create_password_edit.setGeometry(100, 70, 190, 20)
-        
-        self.create_email_edit = QLineEdit(self)
-        self.create_email_edit.setGeometry(100, 40, 190, 20)
+        self.create_password_edit.setGeometry(100, 40, 190, 20)
 
         self.create_login_button = QPushButton("Create", self)
-        self.create_login_button.setGeometry(50, 100, 90, 30)
+        self.create_login_button.setGeometry(50, 70, 90, 30)
         self.create_login_button.clicked.connect(self.register_new_user)
 
         self.create_cancel_button = QPushButton("Cancel", self)
-        self.create_cancel_button.setGeometry(160, 100, 90, 30)
+        self.create_cancel_button.setGeometry(160, 70, 90, 30)
         self.create_cancel_button.clicked.connect(self.reject)
 
         screen_geometry = QApplication.desktop().screenGeometry()
@@ -217,14 +201,13 @@ class CreateUserDialog(QDialog):
 #-------------New User Creation Functions---------------#
     def register_new_user(self):
         new_username = self.create_username_edit.text()
-        new_email = self.create_email_edit.text()
         new_password = self.create_password_edit.text()
         db_manager = DatabaseManager()
         db_manager.connect_to_database()
-        if not new_username or not new_email or not new_password:
-            error = 3
+        if not new_username or not new_password:
+            error = 2
         else:
-            error = check_existed_user(new_username, new_email)
+            error = check_existed_user(new_username)
 
             if error == 0:
                 self.accept()
@@ -241,8 +224,8 @@ class CreateUserDialog(QDialog):
                 else:
                     new_id = '1'  # If no previous IDs exist, start from 1
 
-                query = f"INSERT INTO User (ID, Username, Email, Password, Type) " \
-                        f"VALUES ('{new_id}', '{new_username}', '{new_email}', '{new_password}', 'admin')"
+                query = f"INSERT INTO User (ID, Username, Password) " \
+                        f"VALUES ('{new_id}', '{new_username}', '{new_password}')"
                 cursor.execute(query)
                 db_manager.db_connection.commit()
                 db_manager.close_connection()
@@ -252,8 +235,6 @@ class CreateUserDialog(QDialog):
             elif error == 1:
                 QMessageBox.warning(self, "Username already exists", "Please choose a different username.")
             elif error == 2:
-                QMessageBox.warning(self, "Email already exists", "Please choose a different email address.")
-            elif error == 3:
                 QMessageBox.warning(self, "Empty Fields", "Please fill in all the required fields.")
             
         return False
@@ -320,7 +301,6 @@ class LoginDialog(QDialog):
 
         if authentication_result:
             self.accept()
-            self.Type = Type
         else:
             QMessageBox.warning(self, "Authentication Failed", "Invalid username or password. Please try again.")
             self.username_edit.clear()
@@ -430,7 +410,6 @@ class Ui_MainWindow(object): # Set UI for MainWindow
 
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
-
 
     def retranslateUi(self, MainWindow): # Set UI text
         _translate = QtCore.QCoreApplication.translate
@@ -588,7 +567,8 @@ class ImportDialog(QDialog):
                 for j in range(num_columns):
                     item = QTableWidgetItem(str(self.all_data.iat[i, j]))
                     self.tableWidget.setItem(i, j, item)
-                
+            self.csv_headers = list(self.all_data.columns)
+
     def selecting_import_table(self):
         if not self.file_name:
             QtWidgets.QMessageBox.critical(self, "Error", "No file selected.")
