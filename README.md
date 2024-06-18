@@ -27,17 +27,16 @@ Install virtualenv (if not already installed):
    pip install virtualenv
    
 Create a virtual environment:
-   virtualenv sudoku_env
+   virtualenv env
 
 Activate the virtual environment (On Linux):
-   source sudoku_env/bin/activate
+   source env/bin/activate
 
 4. Install Required Libraries: Use `pip`, the Python package installer, to install the required libraries. Open a terminal or command prompt and run the following commands:
    pip install pymysql pandas sqlalchemy PyQt5 menu
 
 5. Setup MySQL Database/Server: Ensure you have set up a MySQL database/server. Create the following tables:
-- User Table: Contains columns: id, username, email, password, type.
-- You can modify the script to use your table names. Replace occurrences of Table1, Table2, Table3, etc., with your actual table names in the script.
+- User Table: Contains columns: id, username, password.
      
 6. Run the Program: Launch the application by running the Python script:
    python /path/to/DataAdminSoftware.py
@@ -55,11 +54,7 @@ dbhost= "your_host"
 dbusername="your_username"
 dbpassword="your_password"
 dbdatabase="your_database"  
-The DataAdminSoftware.py can automatically generate input boxes based on the database table structure. However, you will need to manually specify the table and column names in these functions:
-- On Import Dialog Class: def determine_table, import_to_database.
-- On Main Window Class (init Section)
-- On Table Menu: Table1_table, etc.
-- Other Table specific function also exist in: enabled_function, open_table_from_database, cancel_edit.
+The DataAdminSoftware.py can automatically generate input boxes based on the database table structure. 
 
 2. Launch the Application: run the Python script to launch the program.
 3. Login: Enter your credentials (username and password) to access the system. If you're a new user, click on the "Create New User" button to register.
