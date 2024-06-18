@@ -32,25 +32,27 @@ dbpassword="password"
 dbdatabase="database"
 
 #-----------Mysql Connection --------------#
+
 class DatabaseManager:
-    def _init_(self, app):
+    def __init__(self):
         self.db_connection = None
-        self.app = app
 
     def connect_to_database(self):
+        global dbhost, dbusername, dbpassword, dbdatabase
+        
         try:
             self.db_connection = pymysql.connect(
-                host= dbhost, 
-                user= dbusername,
-                password= dbpassword,
-                database= dbdatabase,
+                host=dbhost,
+                user=dbusername,
+                password=dbpassword,
+                database=dbdatabase,
                 charset='utf8mb4'
-            ) 
+            )
             if not self.db_connection:
                 self.show_warning("Cannot Connect to Database")
 
         except pymysql.Error as err:
-            self.show_warning("Database Connection Error: {}".format(err))
+            self.show_warning(f"Database Connection Error: {err}")
 
     def close_connection(self):
         if self.db_connection:
@@ -58,6 +60,7 @@ class DatabaseManager:
 
     def show_warning(self, message):
         QMessageBox.warning(None, "Error", message)
+
 
 
 #-------------Check User Credential from Database (User Authentication Dialog)--------------------#
@@ -105,6 +108,70 @@ def check_existed_user(new_username, new_email):
     else:
         cursor.close()
         return 0  # Both username and email are available
+
+#-----------Change Database Dialog Class--------------#
+#------------ init Section------------------#
+class ChangeDatabase(QDialog):
+    def __init__(self, parent=None):
+        super().__init__()
+        self.setWindowTitle("Change Database")
+        layout = QVBoxLayout(self)
+        self.setLayout(layout)
+        self.setGeometry(100, 100, 300, 150)
+
+        self.host_label = QLabel("Host:", self)
+        layout.addWidget(self.host_label)
+        self.host_edit = QLineEdit(self)
+        layout.addWidget(self.host_edit)
+
+        self.database_label = QLabel("Database:", self)
+        layout.addWidget(self.database_label)
+        self.database_edit = QLineEdit(self)
+        layout.addWidget(self.database_edit)
+
+        self.user_label = QLabel("User:", self)
+        layout.addWidget(self.user_label)
+        self.user_edit = QLineEdit(self)
+        layout.addWidget(self.user_edit)
+
+        self.password_label = QLabel("Password:", self)
+        layout.addWidget(self.password_label)
+        self.password_edit = QLineEdit(self)
+        layout.addWidget(self.password_edit)
+
+        self.change_button = QPushButton("Change", self)
+        self.change_button.clicked.connect(self.change_database)
+        layout.addWidget(self.change_button)
+
+        self.change_cancel_button = QPushButton("Cancel", self)
+        self.change_cancel_button.clicked.connect(self.reject)
+        layout.addWidget(self.change_cancel_button)
+
+        screen_geometry = QApplication.desktop().screenGeometry()
+        x = (screen_geometry.width() - self.width()) // 2
+        y = (screen_geometry.height() - self.height()) // 2
+        self.move(x, y)
+
+    def change_database(self):
+        global dbhost, dbusername, dbpassword, dbdatabase
+        
+        dbhost = self.host_edit.text().strip()
+        dbusername = self.user_edit.text().strip()
+        dbpassword = self.password_edit.text().strip()
+        dbdatabase = self.database_edit.text().strip()
+
+        if not dbhost or not dbusername or not dbdatabase:
+            QMessageBox.warning(self, "Error", "Please fill out all fields.")
+            return
+
+        try:
+            db_manager = DatabaseManager()
+            db_manager.connect_to_database()
+
+            QMessageBox.information(self, "Success", "Database connection updated successfully.")
+            self.accept()
+        except pymysql.Error as err:
+            QMessageBox.warning(self, "Error", f"Database Connection Error: {err}")
 
 #-----------Create New User Dialog Class--------------#
 #------------ init Section------------------#
@@ -199,7 +266,7 @@ class LoginDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Login")
         layout = QVBoxLayout()
-        self.setGeometry(100, 100, 300, 150)
+        self.setGeometry(100, 100, 300, 170)
         entered_username = None
 
         self.username_label = QLabel("Username:", self)
@@ -228,6 +295,11 @@ class LoginDialog(QDialog):
         self.create_new_user_label.linkActivated.connect(self.open_create_user_dialog)
         self.create_new_user_label.move(110, 105)  # Set the label's position
 
+        self.create_new_user_label = QLabel('<a href="change_database">Change Database</a>', self)
+        self.create_new_user_label.setOpenExternalLinks(False)  # Prevent opening links in a web browser
+        self.create_new_user_label.linkActivated.connect(self.open_change_database_dialog)
+        self.create_new_user_label.setGeometry(90, 125, 120, 30)
+        
         screen_geometry = QApplication.desktop().screenGeometry()
         x = (screen_geometry.width() - self.width()) // 2
         y = (screen_geometry.height() - self.height()) // 2
@@ -260,7 +332,13 @@ class LoginDialog(QDialog):
         if link == "create_new_user":
             create_user_dialog = CreateUserDialog(db_manager)
             create_user_dialog.exec_()
-
+            
+    def open_change_database_dialog(self, link):
+        db_manager = DatabaseManager()
+        if link == "change_database":
+            change_database_dialog = ChangeDatabase(db_manager)
+            change_database_dialog.exec_()
+            
 #-----------Main Window UI Class--------------#
 #------------ init Section------------------#
 class Ui_MainWindow(object): # Set UI for MainWindow
@@ -393,7 +471,7 @@ class TableSelectDialog(QDialog):
 #--------------Table Selection Function-----------------#
         
     def populate_table_names(self):
-        try:  # Establish a database connection
+        try:  
             db_manager = DatabaseManager()
             db_manager.connect_to_database()
             cursor = db_manager.db_connection.cursor()
@@ -402,7 +480,7 @@ class TableSelectDialog(QDialog):
             table_names = [row[0] for row in cursor.fetchall()]
             self.combo_box.addItems(table_names)
 
-        finally:        # Close the database connection
+        finally:
             if db_manager:
                 db_manager.close_connection()
 
@@ -411,66 +489,84 @@ class TableSelectDialog(QDialog):
 
 #-----------Import Dialog Class--------------#
 #------------ init Section------------------#
-class Import_Dialog(QDialog):
+class ImportDialog(QDialog):
     def __init__(self, main_window):
         super().__init__()
         self.resize(560, 427)
         self.main_window = main_window
-        self.buttonBox = QtWidgets.QDialogButtonBox(self)
+        self.setWindowTitle("Import")
+        # Initialize csv_headers here if needed
+        self.csv_headers = []
+
+        self.buttonBox = QDialogButtonBox(self)
         self.buttonBox.setGeometry(QtCore.QRect(180, 380, 341, 32))
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
         self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel | QtWidgets.QDialogButtonBox.Ok)
         self.buttonBox.setObjectName("buttonBox")
 
-        self.label = QtWidgets.QLabel(self)
+        self.label = QLabel(self)
         self.label.setGeometry(QtCore.QRect(40, 10, 81, 17))
         self.label.setObjectName("label")
 
-        self.label2 = QtWidgets.QLabel(self)
+        self.label2 = QLabel(self)
         self.label2.setGeometry(QtCore.QRect(390, 10, 111, 17))
         self.label2.setObjectName("label2")
 
-        self.label3 = QtWidgets.QLabel(self)
+        self.label3 = QLabel(self)
         self.label3.setGeometry(QtCore.QRect(390, 60, 111, 17))
         self.label3.setObjectName("label3")
 
-        self.text = QtWidgets.QLineEdit(self)
+        self.text = QLineEdit(self)
         self.text.setGeometry(QtCore.QRect(40, 30, 291, 25))
         self.text.setObjectName("text")
         self.text.setPlaceholderText("No File Selected")
 
-        self.tableWidget = QtWidgets.QTableWidget(self)
+        self.tableWidget = QTableWidget(self)
         self.tableWidget.setGeometry(QtCore.QRect(40, 90, 491, 271))
-        self.tableWidget.setObjectName("table")
+        self.tableWidget.setObjectName("tableWidget")
         self.tableWidget.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         self.tableWidget.setSelectionMode(QtWidgets.QAbstractItemView.NoSelection)
         self.tableWidget.resizeColumnsToContents()
 
-        self.button3 = QtWidgets.QPushButton(self)
+        self.button3 = QPushButton(self)
         self.button3.setGeometry(QtCore.QRect(40, 60, 89, 25))
         self.button3.setObjectName("button3")
+        self.button3.setText("Choose File")
 
+        # Replace with dynamic fetching
         self.combo_box = QComboBox(self)
         self.combo_box.setGeometry(390, 30, 111, 25)
 
-        table_names = ["Table1", "Table2", "Table3", "Table4", "Table5"]
-        self.combo_box.addItems(table_names)
+        self.populate_table_names()
 
-        self.setWindowTitle("Import")
         self.label.setText("File Name:")
         self.label2.setText("Import to: ")
-        self.button3.setText("Choose File")
 
-        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.accepted.connect(self.selecting_import_table)
         self.buttonBox.rejected.connect(self.reject)
-        QtCore.QMetaObject.connectSlotsByName(self)
         self.button3.clicked.connect(self.Openfile)
 
-        self.buttonBox.accepted.connect(self.import_to_database)
+        self.file_name = None
+        self.all_data = None
 
-        # Determine the selected table
-        self.import_to_table = None
-        self.newacc = None
+    def populate_table_names(self):
+        try:
+            db_manager = DatabaseManager()
+            db_manager.connect_to_database()
+            cursor = db_manager.db_connection.cursor()
+
+            cursor.execute("SHOW TABLES")
+            table_names = [row[0] for row in cursor.fetchall()]
+            self.combo_box.addItems(table_names)
+
+        except pymysql.Error as err:
+            print(f"Error: {err}")
+        finally:
+            if db_manager:
+                db_manager.close_connection()
+
+    def get_selected_table(self):
+        return self.combo_box.currentText()
 
     def Openfile(self):
         options = QFileDialog.Options()
@@ -493,182 +589,154 @@ class Import_Dialog(QDialog):
                     item = QTableWidgetItem(str(self.all_data.iat[i, j]))
                     self.tableWidget.setItem(i, j, item)
                 
-    def determine_table(self, column_names):
+    def selecting_import_table(self):
+        if not self.file_name:
+            QtWidgets.QMessageBox.critical(self, "Error", "No file selected.")
+            return
+
+        selected_table = self.get_selected_table()
+        if selected_table:
+            table_columns, table_columns_type = self.get_table_columns_from_database(selected_table)
+            mapping_dialog = HeaderMappingDialog(self.csv_headers, table_columns, table_columns_type)
+            if mapping_dialog.exec_() == QDialog.Accepted:
+                mappings = mapping_dialog.selected_mapping()
+                self.import_data_to_database(selected_table, mappings)
+        else:
+            QtWidgets.QMessageBox.critical(self, "Error", "No table selected.")
+
+    def get_table_columns_from_database(self, table_name):
+        selected_table = table_name
+        column_names = []
+        column_data_types = {}
+
         try:
             db_manager = DatabaseManager()
             db_manager.connect_to_database()
             cursor = db_manager.db_connection.cursor()
-            col_name_set = None
-            col_name2_set = None
 
-            self.table_to_import = self.combo_box.currentText()
+            cursor.execute(f"SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{selected_table}' ORDER BY ordinal_position")
+            column_info = cursor.fetchall()
 
-            if self.table_to_import == 'Table1':
-                col_name = [] # Add Table possible column/header
-                col_name = [item.lower().replace(" ", "") for item in col_name]
-                col_name_set = set(col_name)
-                
-            elif self.table_to_import == 'Table2':   
-                col_name = []
-                col_name = [item.lower().replace(" ", "") for item in col_name]
-                col_name_set = set(col_name)
-                
-            column_names = [item.lower().replace(" ", "") for item in column_names]
-            column_names_set = set(column_names)
+            column_names = [col[0] for col in column_info]
+            column_data_types = {col[0]: col[1] for col in column_info}
 
-            if column_names_set == col_name_set:
-                    return True
-            else:
-                QMessageBox.information(self, "Error",
-                                        "CSV file format don't match with {}.".format(self.table_to_import))
-                return False
+            self.column_names = column_names  
+            self.column_data_types = column_data_types
+        except pymysql.Error as err:
+            print(f"Error: {err}")
         finally:
             if db_manager:
                 db_manager.close_connection()
 
-    def import_to_database(self):
-        if not self.text.text():  # Check if the line edit is empty
-            QMessageBox.information(self, "Error", "No CSV file selected.")
-              # Exit the function if no file is selected
-        cancel = self.determine_table(self.all_data.columns)
-        if not cancel:
-            return
-        else:
-            try:
-                db_manager = DatabaseManager()
-                db_manager.connect_to_database()
-                cursor = db_manager.db_connection.cursor()
-
-                selected_table = self.combo_box.currentText()
-                pd.read_csv(self.file_name)
-                                    
-                row_count = 0
-                rowcountcomp = 0
-
-                if selected_table == "Table1":
-                    cursor.execute("SELECT MAX(ID) FROM Table3")
-                    ID_result = cursor.fetchone()
-                    ID_ = ID_result[0] if (
-                            ID_result is not None and ID_result[0] is not None) else 0
-
-                    data = pd.read_csv(self.file_name)
-                    df = pd.DataFrame(data)
-                    df = df.fillna('')
-
-                    # Get the directory of the current script
-                    script_dir = os.path.dirname(os.path.abspath(__file__))
-                    temp_csv_path1 = os.path.join(script_dir, 'temp_data1.csv')
-
-                    # Lists to store the rows for each table
-                    data_rows = []
-
-                    for index, row in df.iterrows():
-                        ID = ID + 1
-                        row_count += 1
-                        column1 = row['column1']
-                        column2 = row['column2']
-                        
-                        # Append data to lists
-                        data_rows.append(
-                            [column1, column2])
-
-                    # Write data to temporary CSV files
-                    pd.DataFrame(data_rows,
-                                 columns=['column1', 'column2']).to_csv(temp_csv_path1, index=False)
-
-                    # Create a MySQL connection
-                    engine = create_engine(f'mysql+pymysql://{dbusername}:{dbpassword}@{dbhost}:3306/{dbdatabase}',
-                                       connect_args={'ssl_disabled': True}) 
-
-                    # Read CSV data
-                    data = pd.read_csv(temp_csv_path1)
-
-                    # Truncate both tables to remove existing data
-                    cursor.execute("TRUNCATE TABLE Table3")
-
-                    # Use sqlalchemy to load data into Table1 and Table2
-                    data.to_sql('Table3', engine, if_exists='append', index=False)
-
-                    # Commit changes
-                    engine.dispose()  # Close the connection
-
-                    os.remove(temp_csv_path1)
-                    QMessageBox.information(self, "Success",
-                                            "All {} row(s) data saved to the database.".format(row_count))
-                        
-            finally:
-                if db_manager:
-                    db_manager.close_connection()
-
-
-
-#-----------Create Invoice Class--------------#
-#------------ init Section------------------#
-class CreateInvoice(QDialog):
-    def __init__(self, main_window):
-        super().__init__()
-        self.main_window = main_window
-        self.resize(319, 160)
-        self.label_4 = QtWidgets.QLabel(self)
-        self.label_4.setGeometry(QtCore.QRect(53, 53, 67, 17))
-        self.label_4.setObjectName("label_4")
-        self.dateEdit_2 = QtWidgets.QDateEdit(self)
-        self.dateEdit_2.setGeometry(QtCore.QRect(123, 49, 121, 26))
-        self.dateEdit_2.setDateTime(QtCore.QDateTime(QtCore.QDate(2023, 1, 1), QtCore.QTime(0, 0, 0)))
-        self.dateEdit_2.setCalendarPopup(False)
-        self.dateEdit_2.setObjectName("dateEdit_2")
-        self.buttonBox = QtWidgets.QDialogButtonBox(self)
-        self.buttonBox.setGeometry(QtCore.QRect(-40, 110, 341, 32))
-        self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel|QtWidgets.QDialogButtonBox.Ok)
-        self.buttonBox.setObjectName("buttonBox")
-
-        self.buttonBox.accepted.connect(self.callprocedure)
-        self.buttonBox.rejected.connect(self.reject)
-        QtCore.QMetaObject.connectSlotsByName(self)
-
-        self.setWindowTitle("Invoice")
-        self.label_4.setText("YY/MM :")
-        self.dateEdit_2.setDisplayFormat("yyyy/MM")
-        
-    def callprocedure(self):                        
-        # Get the date from the QDateEdit widget
-        selected_date = self.dateEdit_2.date()
-
-        # Extract year and month
-        year = selected_date.year()
-        month = selected_date.month()
-
-        Username = login_username
-        
-        # Determine the number of days in the given month
-        _, last_day = calendar.monthrange(year, month)
-
-        Tgl1 = f"{year}-{month:02d}-01"
-        Tgl2 = f"{year}-{month:02d}-{last_day}"
-        self.Tgl1=Tgl1
-        self.Tgl2=Tgl2
-        
+        return column_names, column_data_types  
+         
+    def import_data_to_database(self, selected_table, mappings):
         try:
             db_manager = DatabaseManager()
             db_manager.connect_to_database()
             cursor = db_manager.db_connection.cursor()
 
-            cursor.callproc('Procedure1', (Username, Tgl1, Tgl2))
-            cursor.callproc('Procedure2', (Username, Tgl1, Tgl2))
-            db_manager.db_connection.commit()
-            
-        finally:
-            QMessageBox.information(self, "Success",
-            "Finish Calling Stored Procedures")
-            cursor.close()
-            db_manager.close_connection()
+            data = pd.read_csv(self.file_name)
+            db_columns = ', '.join(mappings.values())
 
-        
+            for index, row in data.iterrows():
+                values = []
+                for csv_header, db_column in mappings.items():
+                    if csv_header in data.columns:  
+                        value = row[csv_header]
+                        if pd.isnull(value): 
+                            value = None
+                        values.append(value)
+                    else:
+                        values.append(None)  
+
+                placeholders = ', '.join(['%s'] * len(values))
+                query = f"INSERT INTO {selected_table} ({db_columns}) VALUES ({placeholders})"
+                cursor.execute(query, values)
+
+            db_manager.db_connection.commit() 
+            QtWidgets.QMessageBox.information(self, "Success", f"Imported file '{self.file_name}' to table '{selected_table}'.")
+
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(self, "Error", f"Error importing data: {str(e)}")
+
+        finally:
+            if db_manager:
+                db_manager.close_connection()
+
+            print(f"Importing file '{self.file_name}' to table '{selected_table}' with mappings:")
+            for csv_header, db_column in mappings.items():
+                print(f"- CSV Column '{csv_header}' maps to DB Column '{db_column}'")
+
+            QtWidgets.QMessageBox.information(self, "Success", f"Imported file '{self.file_name}' to table '{selected_table}'.")
+
+class HeaderMappingDialog(QDialog):
+    def __init__(self, csv_headers, table_columns, table_columns_type):
+        super().__init__()
+        self.setWindowTitle("Map CSV Headers to Table Columns")
+
+        self.csv_headers = csv_headers
+        self.table_columns = table_columns
+        self.column_data_types = table_columns_type
+
+        scroll_area = QScrollArea(self)
+        content_widget = QWidget()
+        scroll_area.setWidget(content_widget)
+        scroll_area.setWidgetResizable(True)
+        layout = QVBoxLayout(content_widget)
+
+        self.mapping_widgets = []
+
+        for column in self.table_columns:
+            if column in self.column_data_types:
+                label_text = f"{column} ({self.column_data_types[column]}): "
+            else:
+                label_text = f"{column}: "
+
+            label = QLabel(label_text, self)
+            combo_box = QComboBox(self)
+            combo_box.addItems([""] + self.csv_headers)
+            layout.addWidget(label)
+            layout.addWidget(combo_box)
+
+            self.mapping_widgets.append((label, combo_box))
+
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        layout.addWidget(button_box)
+        main_layout = QVBoxLayout(self)
+        main_layout.addWidget(scroll_area)
+        self.resize(600, 400)  
+         
+    def populate_column_data_types(self):
+        try:
+            db_manager = DatabaseManager()
+            db_manager.connect_to_database()
+            cursor = db_manager.db_connection.cursor()
+
+            cursor.execute(f"SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{selected_table}' ORDER BY ordinal_position")
+            column_info = cursor.fetchall()
+            self.column_data_types = {col[0]: col[1] for col in column_info}
+
+        except pymysql.Error as err:
+            print(f"Error: {err}")
+        finally:
+            if db_manager:
+                db_manager.close_connection()
+
+    def selected_mapping(self):
+        mapping = {}
+        for label, combo_box in self.mapping_widgets:
+            csv_header = combo_box.currentText()
+            if csv_header:
+                mapping[label.text().split()[0]] = csv_header 
+        return mapping
+    
 #-----------Print Preview Class--------------#
 #------------ init Section------------------#
 
-class InvoiceView(QTextEdit):
+class PrintView(QTextEdit):
     dpi = 72
     doc_width = 8.5 * dpi
     doc_height = 6 * dpi
@@ -686,6 +754,44 @@ class InvoiceView(QTextEdit):
 
         return document
 
+class TableSelectDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Select Table")
+        self.setGeometry(100, 100, 300, 100)
+
+        self.combo_box = QComboBox(self)
+        self.combo_box.setGeometry(10, 10, 280, 30)
+
+        self.populate_table_names()
+
+        ok_button = QPushButton("Open", self)
+        ok_button.setGeometry(10, 50, 90, 30)
+        ok_button.clicked.connect(self.accept)
+
+        cancel_button = QPushButton("Cancel", self)
+        cancel_button.setGeometry(110, 50, 90, 30)
+        cancel_button.clicked.connect(self.reject)
+
+    def populate_table_names(self):
+        try:
+            db_manager = DatabaseManager()
+            db_manager.connect_to_database()
+            cursor = db_manager.db_connection.cursor()
+                    
+            cursor.execute("SHOW TABLES")
+            table_names = [row[0] for row in cursor.fetchall()]
+            self.combo_box.addItems(table_names)
+
+        except pymysql.Error as err:
+            print(f"Error: {err}")
+        finally:
+            if db_manager:
+                db_manager.close_connection()
+
+    def get_selected_table(self):
+        return self.combo_box.currentText()
+
 #-----------Main Window Class--------------#
 #------------ init Section------------------#
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -695,7 +801,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.ui.setupUi(self)  
         self.initUI()
         self.login_dialog = login_dialog
-        self.selected_row = None  # Initialize selected_row attribute
+        
+        self.selected_row = None  
         self.num_columns = 0
         self.adding_row_mode = False
         self.unsaved_changes = False
@@ -703,12 +810,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         data = 0
         self.view_mode = False
         self.edited_rows_list = []
+        self.selected_table = None
 
         self.layout = self.ui.verticalLayout
         self.labels = []
         self.lineedit = {}
 
-        self.invoiceView = InvoiceView()
+        self.PrintView = PrintView()
 
         self.table_name = QtWidgets.QLabel(self)
         self.table_name.setGeometry(QtCore.QRect(10, 25, 300, 25))
@@ -723,14 +831,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.ui.ResetPushButton.clicked.connect(self.reset_data)
         self.ui.EditPushButton.clicked.connect(self.edit_row)
         self.ui.CancelPushButton.clicked.connect(self.cancel_edit)
-        self.ui.ClearTablePushButton.clicked.connect(self.clear_table)
                                                                      
         # Create Menu Bar
         self.menubar = self.menuBar()
 
         # File Menu
         self.file_menu = self.menubar.addMenu('&File')
-        
+
+        self.open_action = QAction('Open', self)
+        self.open_action.setShortcut('Ctrl+O')
+        self.open_action.triggered.connect(self.open_table_window)
+
         self.save_action = QAction('Save', self)
         self.save_action.setShortcut('Ctrl+S')
         self.save_action.triggered.connect(self.save_table_to_database)
@@ -759,7 +870,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.refresh_action.setShortcut('F5')
         self.refresh_action.triggered.connect(self.refresh_table)
         self.refresh_action.setDisabled(True)  # Initially disabled
-       
+
+        self.file_menu.addAction(self.open_action)       
         self.file_menu.addAction(self.save_action)
         self.file_menu.addSeparator()
         self.file_menu.addAction(self.importm_action)
@@ -770,149 +882,59 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.file_menu.addAction(self.refresh_action)
         self.file_menu.addSeparator()
         self.file_menu.addAction(self.exit_action)
-
-        # Table Menu
-        self.User = self.menubar.addAction('User')
-        self.User.triggered.connect(self.user_table)
-        
-        self.Table1 = self.menubar.addAction('Table1')
-        self.Table1.triggered.connect(self.Table1_table)
-
-        self.Table2 = self.menubar.addAction('Table2')
-        self.Table2.triggered.connect(self.Table2_table)
-
-        self.Table3 = self.menubar.addAction('Table3')
-        self.Table3.triggered.connect(self.Table3_table)        
-
-#---------------------Table Menu-------------------------------#
-    def user_table(self):
-        self.selected_table = "User"
-        self.open_table_window()
-
-    def Table1_table(self):
-        self.selected_table = "Table1"
-        self.open_table_window()
-
-    def Table2_table(self):
-        self.selected_table = "Table2"
-        self.open_table_window()
-
-    def Table3_table(self):
-        self.selected_table = "Table3"
-        self.open_table_window()
-
-#--------------------Clear Table Function(Table3)-------------------------#
-    def clear_table (self):
-        reply = QMessageBox.question(
-            self,
-            "Delete Table",
-            "Are you sure you want to clear the table?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
-        )
-        if reply == QMessageBox.Yes:
-            try:
-                db_manager = DatabaseManager()
-                db_manager.connect_to_database()
-                cursor = db_manager.db_connection.cursor()
-                
-                cursor.execute(f"TRUNCATE TABLE {self.selected_table}")
-            finally:
-                if db_manager:
-                    db_manager.db_connection.commit()
-                    db_manager.close_connection()
-                    QMessageBox.information(self, "Success", "Data saved to the database.")
-        else:
-            None
                         
 #----------Open, Save, Import, Export, Close, and Exit (File Menu) Function Section -----------------------#
         
-    def open_table_window(self):         # Open Table Selection Dialog
-        selected_table = self.selected_table
+    def open_table_window(self):
+        dialog = TableSelectDialog(self)
+        result = dialog.exec_()         
 
-        for label in self.labels: # Clear labels 
-            self.layout.removeWidget(label) # Remove item
-            label.deleteLater() # Delete item
+        for label in self.labels:
+            self.layout.removeWidget(label)
+            label.deleteLater()
         self.labels.clear()
 
-        for line_edit in self.lineedit.values(): # Clear line edit
+        for line_edit in self.lineedit.values():
             self.layout.removeWidget(line_edit)
             line_edit.deleteLater()
         self.lineedit.clear()
         
-        if selected_table:
-            self.open_table_from_database(selected_table)   # Open the selected table from the database
-            self.enabled_function() # Enable/Disable button and action accoring to the table being opened
+        if result == QDialog.Accepted: 
+            self.selected_table = dialog.get_selected_table()     
+            if self.selected_table:
+                self.open_table_from_database(self.selected_table)
+                self.enabled_function()  
+
 
     def enabled_function(self):
         selected_table = self.selected_table
-        if selected_table == "User": # Default (Add, Delete, Edit, Import, Export)
-            self.save_action.setEnabled(True)
-            self.export_action.setEnabled(True)
-            self.print_action.setEnabled(True)  
-            self.ui.AddPushButton.setEnabled(True)
-            self.ui.AddPushButton.setVisible(True)
-            self.ui.DeletePushButton.setEnabled(True)
-            self.ui.DeletePushButton.setVisible(True)
-            self.ui.EditPushButton.setEnabled(False)
-            self.ui.EditPushButton.setText("Edit")
-            self.view_mode = False
-            self.ui.ClearTablePushButton.setVisible(False)
-        if selected_table == "Table1": # Default (Add, Delete, Edit, Import, Export)
-            self.save_action.setEnabled(True)
-            self.export_action.setEnabled(True)
-            self.print_action.setEnabled(True)  
-            self.ui.AddPushButton.setEnabled(True)
-            self.ui.AddPushButton.setVisible(True)
-            self.ui.DeletePushButton.setEnabled(True)
-            self.ui.DeletePushButton.setVisible(True)
-            self.ui.EditPushButton.setEnabled(False)
-            self.ui.EditPushButton.setText("Edit")
-            self.view_mode = False
-            self.ui.ClearTablePushButton.setVisible(False)
-        if selected_table == "Table2": # Default (Add, Delete, Edit, Import, Export)
-            self.save_action.setEnabled(True)
-            self.export_action.setEnabled(True)
-            self.print_action.setEnabled(True)  
-            self.ui.AddPushButton.setEnabled(True)
-            self.ui.AddPushButton.setVisible(True)
-            self.ui.DeletePushButton.setEnabled(True)
-            self.ui.DeletePushButton.setVisible(True)
-            self.ui.EditPushButton.setEnabled(False)
-            self.ui.EditPushButton.setText("Edit")
-            self.view_mode = False
-            self.ui.ClearTablePushButton.setVisible(False)
-        if selected_table == "Table3": # Default (Add, Delete, Edit, Import, Export)
-            self.save_action.setEnabled(True)
-            self.export_action.setEnabled(True)
-            self.print_action.setEnabled(True)  
-            self.ui.AddPushButton.setEnabled(True)
-            self.ui.AddPushButton.setVisible(True)
-            self.ui.DeletePushButton.setEnabled(True)
-            self.ui.DeletePushButton.setVisible(True)
-            self.ui.EditPushButton.setEnabled(False)
-            self.ui.EditPushButton.setText("Edit")
-            self.view_mode = False
-            self.ui.ClearTablePushButton.setVisible(False)
-            
+        self.save_action.setEnabled(True)
+        self.export_action.setEnabled(True)
+        self.print_action.setEnabled(True)  
+        self.ui.AddPushButton.setEnabled(True)
+        self.ui.AddPushButton.setVisible(True)
+        self.ui.DeletePushButton.setEnabled(True)
+        self.ui.DeletePushButton.setVisible(True)
+        self.ui.EditPushButton.setEnabled(False)
+        self.ui.EditPushButton.setText("Edit")
+     
     def open_table_from_database(self, selected_table):
         self.ui.tableWidget.clearContents()
         self.refresh_action.setEnabled(True)
         self.table_name.setVisible(True)
-        self.table_name.setText("Currently Viewing: {}".format(selected_table))
+        self.table_name.setText(f"Currently Viewing: {selected_table}")
         self.cancel_edit()
         self.enabled_function()
-                
-        if not selected_table:
-            return
+        self.selected_table = selected_table
         try:
             db_manager = DatabaseManager()
             db_manager.connect_to_database()
             cursor = db_manager.db_connection.cursor()
 
+            # Retrieve column information
             cursor.execute(f"SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{selected_table}' ORDER BY ordinal_position")
             column_info = cursor.fetchall()
-            
+
             column_names=[]
             column_names = [col_name for col_name, _ in column_info]
             
@@ -923,54 +945,40 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             cursor.execute(query)
             data = cursor.fetchall()
         
-            self.num_columns = len(column_names)  # Use column_names
+            self.num_columns = len(column_names)  
             self.table_data = data
-            
+    
         finally:
             if db_manager:
                 db_manager.close_connection()
 
-            self.ui.tableWidget.setColumnCount(self.num_columns)  # Use self.num_columns
-            self.ui.tableWidget.setHorizontalHeaderLabels(column_names)  # Use column_names
+            self.ui.tableWidget.setColumnCount(self.num_columns)
+            self.ui.tableWidget.setHorizontalHeaderLabels(column_names)
 
-            self.column_names = column_names  # Use column_names
-            header_labels = column_names  # Use column_names
+            self.column_names = column_names 
+            header_labels = column_names  
             self.load_data_to_table_widget(self.table_data, column_names)
-
-
-            combo_box_columns = []
-
-            # List of Header with 2 or 3 Default Data (changing line edit to combo box)
-            if selected_table == "User":
-                combo_box_columns = ["Type"]
-                items = ["a", "b"]
 
             for col_num, column_name in enumerate(self.column_names):
                 label = QLabel(header_labels[col_num])
-                lineedit = QComboBox() if column_name in combo_box_columns else QLineEdit()
+                lineedit = QLineEdit()
                 self.layout.addWidget(label)
                 self.layout.addWidget(lineedit)
                 self.labels.append(label)
                 self.lineedit[column_name] = lineedit
-                if isinstance(lineedit, QComboBox): # Combo box section
-                    for item in items:
-                        lineedit.addItem(item)  # Add options to the combo box
-                    lineedit.setCurrentIndex(-1)
-                    
-            if self.ui.tableWidget.rowCount() > 0: # Automatically select first row when opening new table
+                
+            if self.ui.tableWidget.rowCount() > 0:
                 self.ui.tableWidget.selectRow(0)
-                self.ui.tableWidget.setFocus() # Set focus to tableWidget, so that up and down button can be use to move row selection (without clicking on the table first)
+                self.ui.tableWidget.setFocus()
 
             selected_rows = self.ui.tableWidget.selectionModel().selectedRows()
-            if selected_rows: # If there are row selected, enable EditPushButton (If there are no row, nothing can be edited)
-                if self.view_mode == False:
-                    self.ui.EditPushButton.setEnabled(True)
+            if selected_rows:
+                self.ui.EditPushButton.setEnabled(True)
 
             self.ui.tableWidget.resizeColumnsToContents()
-            
-    def load_data_to_table_widget(self, data, header_labels): # Populate the QTableWidget with data
-        self.ui.tableWidget.setColumnCount(len(header_labels))
 
+    def load_data_to_table_widget(self, data, header_labels):
+        self.ui.tableWidget.setColumnCount(len(header_labels))
         self.ui.tableWidget.setRowCount(len(data))
 
         for row_num, row_data in enumerate(data):
@@ -979,7 +987,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.ui.tableWidget.setItem(row_num, col_num, item)
 
     def import_csv(self): # import table from .csv file
-        dialog = Import_Dialog(self)    
+        dialog = ImportDialog(self)    
         result = dialog.exec_()     
 
     def export_csv(self):
@@ -1061,14 +1069,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     QMessageBox.information(self, "Success", "Data saved to the database.")
         else:
             None
-
-    def import_temp(self):
-        dialog = ImportToTemp(self)    
-        result = dialog.exec_()     
- 
-    def invoice(self):
-        dialog = CreateInvoice(self)    
-        result = dialog.exec_()     
         
     def printpreviewDialog(self, data):
         previewDialog = QPrintPreviewDialog()
@@ -1077,8 +1077,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 
     def printPreview(self, printer):
-        data = self.table_data  # You can create data here, such as customer name and other details
-        document = self.invoiceView.build_invoice(data)
+        data = self.table_data 
+        document = self.PrintView.build_invoice(data)
         document.print_(printer)
 
         model = self.ui.tableWidget.model()
@@ -1162,8 +1162,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         
 #--------------Search/Filter Row Function Section ---------------------#
 
-    def search(self):   # Search for rows in the table based on the keyword
-        keyword = self.ui.SearchBox.text().strip().lower()
+
+    def search(self, text):
+        keyword = text.strip().lower()
 
         if not keyword:
             for row in range(self.ui.tableWidget.rowCount()):
@@ -1198,46 +1199,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.ui.DeletePushButton.setEnabled(False)
         
         if selected_rows:
-            self.selected_row = selected_rows[0].row()  # Store the selected row
-            if self.view_mode == True:
-                self.ui.tableWidget.setEnabled(True)
-                self.ui.ResetPushButton.setEnabled(False)
-                self.ui.SavePushButton.setEnabled(False)
-                self.ui.ClearPushButton.setEnabled(False)
-            else:
-                self.ui.ResetPushButton.setEnabled(True)
-                self.ui.SavePushButton.setEnabled(True)
-                self.ui.ClearPushButton.setEnabled(True)
+            self.selected_row = selected_rows[0].row()  
+            self.ui.ResetPushButton.setEnabled(True)
+            self.ui.SavePushButton.setEnabled(True)
+            self.ui.ClearPushButton.setEnabled(True)
             self.ui.scrollAreaWidgetContents.setEnabled(True)  # Enable the scroll area
             
             for column_name, line_edit in self.lineedit.items():
                 item = self.ui.tableWidget.item(self.selected_row, self.column_names.index(column_name))
                 if item is not None:
                     cell_data = item.text()
-                    if isinstance(line_edit, QComboBox):
-                        index = line_edit.findText(cell_data)
-                        if index != -1:
-                            line_edit.setCurrentIndex(index)
-                    else:
-                        line_edit.setText(cell_data)
-                if self.adding_row_mode == True:
-                    if self.selected_table == "User":
-                        if column_name == "Type":
-                            line_edit.setCurrentIndex(0)
+                    line_edit.setText(cell_data)    
                         
-    def cancel_edit(self):
-        combo_box_columns = []
-        if self.selected_table == "User":
-            combo_box_columns = ["Type"]
-            items = ["a", "b"]
-        
+    def cancel_edit(self):        
         for line_edit in self.lineedit.values():
             line_edit.clear()
-            if isinstance(line_edit, QComboBox):
-                # Preserve the items in the combo box
-                for item in items:
-                    line_edit.addItem(item)
-                line_edit.setCurrentIndex(-1)
 
         self.ui.scrollAreaWidgetContents.setEnabled(False)  # Disable editing mode
         self.ui.ResetPushButton.setEnabled(False)
@@ -1248,7 +1224,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.ui.tableWidget.setEnabled(True)
         self.ui.AddPushButton.setEnabled(True)
         self.ui.DeletePushButton.setEnabled(True)
-        self.enabled_function() # Enable/Disable button and action accoring to the table being opened
+        self.enabled_function() 
 
         if self.adding_row_mode == True:
             self.delete_row()
@@ -1296,11 +1272,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 if line_edit is not None:
                     if isinstance(line_edit, QLineEdit):
                         if not self.validate_inputs(column_name, line_edit):
-                            return  # Abort saving if validation fails
+                            return  # Abort saving 
                         new_text = line_edit.text()
-                    elif isinstance(line_edit, QComboBox):
-                        new_text = line_edit.currentText()
-
+                        
                     item = QTableWidgetItem(new_text)
                     self.ui.tableWidget.setItem(row.row(), col_num, item)
 
@@ -1320,9 +1294,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.clear_data()
         self.unsaved_changes = True
         self.record_changes()
-        self.enabled_function() # Enable/Disable button and action accoring to the table being opened
-
-        return True  # Successful saving
+        self.enabled_function() 
+        return True  
 
     def clear_data(self):   # Clear the data in line edits for the selected(edited) columns
         for column_name, line_edit in self.lineedit.items():
