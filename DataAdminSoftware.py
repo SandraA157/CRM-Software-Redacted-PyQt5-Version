@@ -1272,7 +1272,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.ui.EditPushButton.setVisible(True)
         self.ui.tableWidget.setEnabled(True)
         self.clear_data()
-        self.unsaved_changes = True
+        self.unsaved_changes = False
         self.record_changes()
         self.enabled_function() 
         return True  
