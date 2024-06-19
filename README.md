@@ -59,16 +59,6 @@ The DataAdminSoftware.py can automatically generate input boxes based on the dat
 2. Launch the Application: run the Python script to launch the program.
 3. Login: Enter your credentials (username and password) to access the system. If you're a new user, click on the "Create New User" button to register.
 4. Main Interface: Once logged in, you'll be presented with the main interface wiht menu(s) such as import, export, print, and table display.
-5. Data Management:
-   - Edit Data: Click on the "Edit" button to modify existing data. You can edit individual rows, clear all fields, reset changes, and save modifications.
-   - Delete Data: Select the row(s) you want to delete and click on the "Delete" button to remove them from the database.
-   - Import Data: Use the "Import" feature to add data from external sources into the database.
-   - Export Data: Export database data to external files or formats using the "Export" option.
-   - Print Data: Preview and print database contents using the "Print" feature.
-6. Additional Functions:
-   - Display Table: View database tables with ease by selecting the desired table from the dropdown menu.
-   - Refresh Page: Refresh the page to reflect the latest data changes.
-7. Logout: Click on the "Logout" button to exit the application and log out of the system.
 
 ### Example:
 Suppose you want to edit a customer's information:
