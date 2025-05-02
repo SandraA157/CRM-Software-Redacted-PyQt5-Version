@@ -1,0 +1,6 @@
+pymysql
+pandas
+sqlalchemy
+menu
+datetime
+PyQt5
