@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import os
-import stripe
 import subprocess
 import sys
 import re
