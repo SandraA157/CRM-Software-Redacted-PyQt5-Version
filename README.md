@@ -1,5 +1,5 @@
 # Database-Administration-Project-Redacted-Software-Version-
-The program simplifies data management tasks for administrators by providing intuitive interfaces for editing, deleting, importing, exporting, and printing data without requiring prior SQL database knowledge.
+The program is a simplified version of CRM (PyQt5 GUI). You can edit MySQL database (edit, delete, import, export, and printing data) without requiring prior SQL database knowledge.
 
 ## Overview
 This Database Administration Project originated as a project to evaluate my ability in Python development after three months of learning Python. It is designed as a task-specific tool, with certain functionalities redacted to maintain privacy.
