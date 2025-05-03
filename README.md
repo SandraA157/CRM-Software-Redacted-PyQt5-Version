@@ -2,7 +2,7 @@
 The program is a simplified version of CRM (PyQt5 GUI). You can edit MySQL database (edit, delete, import, export, and printing data) without requiring prior SQL database knowledge.
 
 ## Overview
-This Database Administration Project originated as a project to evaluate my ability in Python development after three months of learning Python. It is designed as a task-specific tool, with certain functionalities redacted to maintain privacy.
+This CRM originated as a project to evaluate my ability in Python development after three months of learning.
 
 ## Features
 - Login Page: Secure access control for authorized users.
@@ -22,7 +22,7 @@ This Database Administration Project originated as a project to evaluate my abil
 - MySQL Version: MySQL 8.0.36
 
 ## Usage
-The program simplifies data management tasks for administrators by providing intuitive interfaces for editing, deleting, importing, exporting, and printing data without requiring prior SQL database knowledge. Follow the steps below to use the application:
+Follow the steps below to use the application:
 1. Set up MySQL Details: edit the detail inside the Python script.
 dbhost= "your_host" 
 dbusername="your_username"
