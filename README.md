@@ -1,4 +1,4 @@
-# Database-Administration-Project-Redacted-Software-Version-
+# CRM-Software-Redacted-PyQt5-Version
 The program is a simplified version of CRM (PyQt5 GUI). You can edit MySQL database (edit, delete, import, export, and printing data) without requiring prior SQL database knowledge.
 
 ## Overview
