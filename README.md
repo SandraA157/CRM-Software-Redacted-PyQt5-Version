@@ -24,10 +24,12 @@ This CRM originated as a project to evaluate my ability in Python development af
 ## Usage
 Follow the steps below to use the application:
 1. Set up MySQL Details: edit the detail inside the Python script.
+```
 dbhost= "your_host" 
 dbusername="your_username"
 dbpassword="your_password"
 dbdatabase="your_database"  
+```
 The DataAdminSoftware.py can automatically generate input boxes based on the database table structure. 
 
 2. Launch the Application: run the Python script to launch the program.
